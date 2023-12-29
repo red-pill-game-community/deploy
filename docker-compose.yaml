@@ -1,0 +1,76 @@
+version: "3.0"
+
+networks:
+ alphaboyNetwork:
+
+services:
+
+  # redis http://localhost:18810
+  AlphaBoyRedisCommander:
+    container_name: AlphaBoyRedisCommander
+    hostname: redis_commander
+    image: rediscommander/redis-commander:latest
+    restart: always
+    environment:
+      - REDIS_HOSTS=anshang:AlphaBoyRedisServer:6379
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - 18810:8081
+    networks:
+      - alphaboyNetwork
+
+  ## web-url http://localhost:18800
+  AlphaBoyPhpmyadminServer:
+    container_name: AlphaBoyPhpmyadmin
+    image: phpmyadmin
+    restart: always
+    ports:
+      - 18800:80
+    environment:
+      - PMA_HOSTS=AlphaBoyMysqlServer:3306
+    networks:
+      - alphaboyNetwork
+
+  # Redis服务
+  AlphaBoyRedisServer:
+    container_name: AlphaBoyRedisServer
+    image: redis:7
+    restart: always
+    ports:
+      - 25670:6379
+    environment:
+      - TZ=Asia/Shanghai
+    command: redis-server /usr/local/etc/redis/redis.conf
+    volumes:
+      ## Redis配置
+      - ./configs/redis/redis.conf:/usr/local/etc/redis/redis.conf
+      ## Redis数据持久化
+      - ./data/redis:/data/
+    networks:
+      - alphaboyNetwork
+
+  # MySQL服务
+  AlphaBoyMysqlServer:
+    container_name: AlphaBoyMysqlServer
+    image: mysql:8
+    restart: always
+    ## MySQL启动的时候跳过binlog
+    command: --disable-log-bin --skip-log-bin
+    ports:
+      - 25630:3306
+    volumes:
+      ## MySQL配置文件
+      - ./configs/mysql:/etc/mysql/conf.d/
+      ## MySQL持久化数据
+      - ./data/mysql:/var/lib/mysql/
+      ## 初始化SQL语句的读取目录
+      - ./entrypoints/mysql:/docker-entrypoint-initdb.d/
+      ## 如果需要使用mysqldump导出数据的话就指向home目录
+      - ./dump/mysql:/home/
+    environment:
+      - TZ=Asia/Shanghai
+      - MYSQL_PASSWORD=123456
+      - MYSQL_ROOT_PASSWORD=123456
+    networks:
+      - alphaboyNetwork
